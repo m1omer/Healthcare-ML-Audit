@@ -1,1 +1,90 @@
+---
+title: "Synthetic Data Generation Demo with synthpop"
+output: html_document
+---
+
+### Load Libraries & sample data
+```{r setup}
+
+# load libraries 
+library(synthpop)
+library(ggplot2)
+library(dplyr)
+
+# load the data 
+synth_og <- read.csv("../data/data_new.csv")
+
+
+# take a random sample of 100 rows to keep things fast and readable 
+# NOTE: Small sample size used intentionally for purpose of demo
+sm_sample <- synth_og %>% sample_n(100)
+
+```
+
+
+### Generate Synthetic Data 
+```{r synthesize, results='hide'}
+# Generate synthetic data with all output silenced
+tmp <- capture.output({
+  syn_model <- syn(sm_sample, seed = 123)
+})
+
+# Extract the synthetic dataset
+syn_dat <- syn_model$syn
+
+# Create plot_df for ggplot
+plot_df <- rbind(
+  data.frame(cost_t = sm_sample$cost_t, source = "Original"),
+  data.frame(cost_t = syn_dat$cost_t, source = "Synthetic")
+)
+
+
+
+```
+
+
+### Synthetic vs Real Data 
+```{r plot_cost}
+
+ggplot(plot_df, aes(x = cost_t, color = source)) +
+  geom_density(size = 1.5) +
+  scale_color_manual(values = c("Original" = "#D55E00", "Synthetic" = "#0072B2")) +
+  labs(
+    title = "Distribution of cost_t: Original vs. Synthetic Sample",
+    x = "cost_t", y = "Density",
+    color = "Source"
+  ) +
+  theme_minimal(base_size = 14)
+
+
+
+```
+
+### Compare Variables
+```{r}
+
+# Compare key variables
+compare(
+  syn_model,
+  data = sm_sample,
+  vars = c("cost_t", "gagne_sum_t", "risk_score_t")
+)
+
+```
+
+
+### Conclusion 
+
+
+  The purpose of this notebook was to demonstrate how the `synthpop` package in R works — specifically, to showcase the process used to generate the synthetic dataset provided by Obermeyer et al and used in our audit of healthcare algorithm bias.
+
+  By applying `synthpop` to a small sample of the dataset, we illustrated how it constructs synthetic data that approximates the distributions and relationships present in the original. Visual density plots and the `compare()` function indicated that key features like `cost_t` and `gagne_sum_t` were well preserved, while others (e.g., `risk_score_t`) showed more divergence — particularly in tail distributions.
+
+  However, this demonstration also highlights important **limitations of `synthpop`**:
+-     It does **not preserve temporal patterns**, which are critical in longitudinal healthcare modeling.
+-     Rare edge cases and anomalies tend to be smoothed out, potentially underrepresenting high-risk subgroups.
+-     Relationships involving **unmeasured confounders or system-level bias** (e.g., care access disparities) are not recoverable through         synthetic data alone.
+
+  Ultimately, this notebook is not meant to re-synthesize the dataset, but rather to **transparently document the statistical mechanism** through which the original study’s authors created their publicly shareable dataset. This ensures that downstream audit work — including fairness analysis and model reproduction — is grounded in a clear understanding of how the underlying data was generated.
+
 
